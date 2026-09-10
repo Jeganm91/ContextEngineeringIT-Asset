@@ -1,0 +1,5 @@
+flask
+openai>=1.55.3
+azure-search-documents
+azure-core
+requests

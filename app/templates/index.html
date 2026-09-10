@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Asset Assistant</title>
+<style>
+  :root {
+    --bg: #f5f6fa; --panel: #ffffff; --border: #e3e6ec; --text: #1a1d29;
+    --muted: #6b7280; --accent: #2f5496; --accent-light: #eef2fb;
+    --danger: #c0392b; --warn: #b7791f; --ok: #1e7e34;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+  .app { max-width: 900px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 18px 24px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .badge { font-size: 12px; color: var(--muted); background: var(--accent-light); padding: 4px 10px; border-radius: 12px; }
+  #chat { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 78%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; font-size: 14.5px; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg.assistant.escalated { border-left: 3px solid var(--warn); }
+  .msg.assistant.error { border-left: 3px solid var(--danger); }
+  .flags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .flag { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+  .flag.injection { background: #fdecea; color: var(--danger); }
+  .flag.contradiction { background: #fff4e5; color: var(--warn); }
+  .flag.escalated { background: #fff4e5; color: var(--warn); }
+  .flag.mcp { background: var(--accent-light); color: var(--accent); }
+  details.sources { margin-top: 10px; font-size: 13px; }
+  details.sources summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+  .source-item { margin-top: 8px; padding: 8px 10px; background: #fafbfc; border: 1px solid var(--border); border-radius: 6px; }
+  .source-item .meta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  #inputbar { padding: 16px 24px; background: var(--panel); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  #q { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14.5px; outline: none; }
+  #q:focus { border-color: var(--accent); }
+  #send { padding: 12px 22px; background: var(--accent); color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 14.5px; font-weight: 600; }
+  #send:disabled { opacity: 0.5; cursor: default; }
+  .typing { color: var(--muted); font-style: italic; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>IT Asset Management Assistant</h1>
+    <span class="badge" id="session-badge">session: new</span>
+  </header>
+  <div id="chat"></div>
+  <div id="inputbar">
+    <input id="q" type="text" placeholder="Ask about software licensing, approvals, or pricing..." autocomplete="off">
+    <button id="send">Send</button>
+  </div>
+</div>
+<script>
+const chat = document.getElementById('chat');
+const qInput = document.getElementById('q');
+const sendBtn = document.getElementById('send');
+const sessionBadge = document.getElementById('session-badge');
+let sessionId = 'sess-' + Math.random().toString(36).slice(2, 10);
+document.getElementById('session-badge').textContent = 'session: ' + sessionId;
+
+function addMessage(role, text, extra) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role + (extra && extra.escalated ? ' escalated' : '') + (extra && extra.error ? ' error' : '');
+  div.textContent = text;
+  if (extra) {
+    const flags = document.createElement('div');
+    flags.className = 'flags';
+    let any = false;
+    if (extra.mcp_used) { flags.innerHTML += '<span class="flag mcp">Live tool used</span>'; any = true; }
+    if (extra.injection_flagged) { flags.innerHTML += '<span class="flag injection">Injection attempt detected</span>'; any = true; }
+    if (extra.contradictions && extra.contradictions.length) { flags.innerHTML += '<span class="flag contradiction">Source conflict detected</span>'; any = true; }
+    if (extra.escalated) { flags.innerHTML += '<span class="flag escalated">Escalated -- not answered</span>'; any = true; }
+    if (any) div.appendChild(flags);
+
+    if (extra.citations && extra.citations.length) {
+      const det = document.createElement('details');
+      det.className = 'sources';
+      const sum = document.createElement('summary');
+      sum.textContent = extra.citations.length + ' source(s)';
+      det.appendChild(sum);
+      extra.citations.forEach((c, i) => {
+        const s = document.createElement('div');
+        s.className = 'source-item';
+        s.innerHTML = '<div class="meta">[' + (i+1) + '] ' + (c.source||'') + (c.status ? ' -- ' + c.status : '') + (c.effective_date ? ' -- ' + c.effective_date : '') + '</div>' + (c.content || '').slice(0, 220);
+        det.appendChild(s);
+      });
+      div.appendChild(det);
+    }
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendQuery() {
+  const text = qInput.value.trim();
+  if (!text) return;
+  addMessage('user', text);
+  qInput.value = '';
+  sendBtn.disabled = true;
+  const typing = document.createElement('div');
+  typing.className = 'typing';
+  typing.textContent = 'Assistant is thinking...';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+
+  try {
+    const res = await fetch('/api/query', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: text, session_id: sessionId})
+    });
+    const data = await res.json();
+    typing.remove();
+    sessionBadge.textContent = 'session: ' + sessionId;
+    addMessage('assistant', data.answer || '(no answer)', {...data, error: res.status >= 400});
+  } catch (e) {
+    typing.remove();
+    addMessage('assistant', 'Request failed: ' + e.message, {error: true});
+  }
+  sendBtn.disabled = false;
+  qInput.focus();
+}
+
+sendBtn.addEventListener('click', sendQuery);
+qInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendQuery(); });
+addMessage('assistant', 'Hello. Ask me about software license requests, premium approvals, or current pricing.');
+</script>
+</body>
+</html>
