@@ -146,7 +146,12 @@ def search_azure_knowledge_base(query: str, top_k: int = 2):
         )
 
         # BUG (FC-01): text-only search -- no vector_queries constructed or passed.
-        results = client.search(search_text=query, top=top_k)
+        openai_client = get_openai_client()
+        query_vector = get_query_embedding(openai_client, query)
+        vector_query = VectorizedQuery(
+            vector=query_vector, k_nearest_neighbors=top_k, fields=config.VECTOR_FIELD_NAME
+        )
+        results = client.search(search_text=query, vector_queries=[vector_query], top=top_k)
 
         candidates = []
         for doc in results:
