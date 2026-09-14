@@ -1,0 +1,8 @@
+{
+  "catalog_name": "Seat Inventory Reference",
+  "as_of": "2026-02-20",
+  "seats": [
+    {"software": "Design Suite Pro", "seats_owned": 60, "seats_in_use": 54},
+    {"software": "Analytics Platform Enterprise", "seats_owned": 80, "seats_in_use": 71}
+  ]
+}

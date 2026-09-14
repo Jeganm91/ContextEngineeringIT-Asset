@@ -20,6 +20,7 @@ MIN_SEARCH_SCORE = float(os.environ.get("MIN_SEARCH_SCORE", "1.0"))
 MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", "6000"))
 MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "8"))
 VECTOR_FIELD_NAME = os.environ.get("VECTOR_FIELD_NAME", "text_vector")
+DEDUP_JACCARD_THRESHOLD = float(os.environ.get("DEDUP_JACCARD_THRESHOLD", "0.6"))
 
 DEFAULT_SYSTEM_PROMPT = """You are an assistant for the internal IT Asset Management team.
 Answer strictly using the retrieved context and conversation history provided below.

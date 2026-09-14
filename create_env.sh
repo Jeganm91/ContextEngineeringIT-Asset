@@ -4,12 +4,10 @@ set -e
 user_email="$1"
 sub="$2"
 location="southindia"
-rgname=$(echo "$user_email" | cut -d "@" -f1)
-git_repo="https://github.com/Jeganm91/ContextEngineeringVersion03.git"
+rgname="JegannathM-RG"
+git_repo="https://github.com/Jeganm91/ContextEngineeringIT-Asset.git"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-az group create -l "$location" -n "$rgname" --subscription "$sub" > /dev/null
 
 id=$(az ad user show --id "$1" --query "id" --output tsv)
 subid=$(az account show --name "$sub" --query id -o tsv)
@@ -24,12 +22,12 @@ dsname="rag-ds-${rand}"
 skname="rag-skillset-${rand}"
 idxrname="rag-indexer-${rand}"
 
-# --- role assignments + policy, background, non-blocking ---
-az role assignment create --assignee "$id" --role "DenyPolicyDelete" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$id" --role "Storage Blob Data Contributor" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$id" --role "Search Index Data Contributor" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$id" --role "Search Service Contributor" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$id" --role "Cognitive Services OpenAI Contributor" --scope "$scope" > /dev/null 2>&1 &
+# --- role assignments, background, non-blocking ---
+# MSYS_NO_PATHCONV avoids Git Bash mangling the leading-slash --scope path into a Windows path
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$id" --role "Storage Blob Data Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$id" --role "Search Index Data Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$id" --role "Search Service Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$id" --role "Cognitive Services OpenAI Contributor" --scope "$scope" > /dev/null 2>&1 &
 
 # --- Search + OpenAI creation, background, overlaps VM+Storage ---
 az search service create -n "$srchname" -g "$rgname" -l "$location" --sku Basic --partition-count 1 --replica-count 1 --subscription "$sub" > /dev/null 2>&1 &
@@ -44,7 +42,7 @@ az storage container create -n "kb-docs" --account-name "$stname" --account-key 
 
 # --- Upload knowledge docs WITH metadata (doc_id/status/effective_date) so the
 #     indexer can map them straight to index fields without a custom parser ---
-for f in "${SCRIPT_DIR}"/../knowledge_base_docs/*.md; do
+for f in "${SCRIPT_DIR}"/knowledge_base_docs/*.md; do
     fname=$(basename "$f")
     doc_id=$(grep -m1 "^doc_id:" "$f" | sed 's/doc_id:[[:space:]]*//')
     status=$(grep -m1 "^status:" "$f" | sed 's/status:[[:space:]]*//')
@@ -59,10 +57,10 @@ wait $OPENAI_PID
 # --- Model deployments (needs OpenAI resource to exist first) ---
 az cognitiveservices account deployment create --name "$oiname" -g "$rgname" --subscription "$sub" \
     --deployment-name "text-embedding-3-small" --model-name "text-embedding-3-small" \
-    --model-version "1" --model-format OpenAI --sku-capacity 10 --sku-name "Standard" > /dev/null
+    --model-version "1" --model-format OpenAI --sku-capacity 10 --sku-name "GlobalStandard" > /dev/null
 az cognitiveservices account deployment create --name "$oiname" -g "$rgname" --subscription "$sub" \
     --deployment-name "gpt-5-mini" --model-name "gpt-5-mini" \
-    --model-version "1" --model-format OpenAI --sku-capacity 10 --sku-name "Standard" > /dev/null
+    --model-version "2025-08-07" --model-format OpenAI --sku-capacity 10 --sku-name "GlobalStandard" > /dev/null
 
 oi_endpoint=$(az cognitiveservices account show -n "$oiname" -g "$rgname" --subscription "$sub" --query "properties.endpoint" -o tsv)
 oi_key=$(az cognitiveservices account keys list -n "$oiname" -g "$rgname" --subscription "$sub" --query "key1" -o tsv)
@@ -138,9 +136,9 @@ curl -s -X PUT "${srch_endpoint}/indexers/${idxrname}?api-version=2024-07-01" \
   "fieldMappings": [
     {"sourceFieldName": "metadata_storage_path", "targetFieldName": "chunk_id", "mappingFunction": {"name": "base64Encode"}},
     {"sourceFieldName": "metadata_storage_name", "targetFieldName": "title"},
-    {"sourceFieldName": "metadata_doc_id", "targetFieldName": "doc_id"},
-    {"sourceFieldName": "metadata_status", "targetFieldName": "status"},
-    {"sourceFieldName": "metadata_effective_date", "targetFieldName": "effective_date"},
+    {"sourceFieldName": "doc_id", "targetFieldName": "doc_id"},
+    {"sourceFieldName": "status", "targetFieldName": "status"},
+    {"sourceFieldName": "effective_date", "targetFieldName": "effective_date"},
     {"sourceFieldName": "content", "targetFieldName": "content"}
   ],
   "outputFieldMappings": [
@@ -216,9 +214,9 @@ deploy_output=$(az deployment group create --name "infra-deploy-${rand}" --resou
   --query "properties.outputs" -o json)
 vm_principal_id=$(echo "$deploy_output" | jq -r '.vmPrincipalId.value')
 
-az role assignment create --assignee "$vm_principal_id" --role "Storage Blob Data Contributor" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$vm_principal_id" --role "Search Index Data Contributor" --scope "$scope" > /dev/null 2>&1 &
-az role assignment create --assignee "$vm_principal_id" --role "Cognitive Services OpenAI Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$vm_principal_id" --role "Storage Blob Data Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$vm_principal_id" --role "Search Index Data Contributor" --scope "$scope" > /dev/null 2>&1 &
+MSYS_NO_PATHCONV=1 az role assignment create --assignee "$vm_principal_id" --role "Cognitive Services OpenAI Contributor" --scope "$scope" > /dev/null 2>&1 &
 
 wait
 echo "Success"
