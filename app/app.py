@@ -378,7 +378,7 @@ def run_rag_query(query: str, session_id: str = None):
         result["mcp_used"] = True
         tool_path, payload = route_mcp_tool(query)
         mcp_res = call_mcp_tool(tool_path, payload)
-        if mcp_res and validate_tool_output(mcp_res) and mcp_res.get("data"):
+        if mcp_res and validate_tool_output(mcp_res):
             result["answer"] = mcp_res["data"]
             return result, 200
         # falls through to knowledge-base search if the tool result is unusable
