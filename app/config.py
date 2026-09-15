@@ -17,7 +17,7 @@ MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:9001")
 
 # Reasonable operational defaults -- not part of the seeded fault set.
 MIN_SEARCH_SCORE = float(os.environ.get("MIN_SEARCH_SCORE", "1.0"))
-MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", "700"))
+MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", "1500"))
 MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "8"))
 VECTOR_FIELD_NAME = os.environ.get("VECTOR_FIELD_NAME", "text_vector")
 DEDUP_JACCARD_THRESHOLD = float(os.environ.get("DEDUP_JACCARD_THRESHOLD", "0.5"))
